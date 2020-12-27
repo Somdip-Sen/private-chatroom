@@ -1,6 +1,7 @@
 import socket
 import threading
 import sys
+import ssl
 
 # connection  192.168.0.102
 soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -81,7 +82,27 @@ Connected client : {threading.active_count() - 3}""")
             except Exception as e:
                 print(e)
 
+try:
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+    ctx.load_cert_chain(certfile="cert.pem", keyfile="key.pem")
 
+    _orig_accept_client = accept_client
+
+    def _accept_client_tls(client, address):
+        try:
+            client = ctx.wrap_socket(client, server_side=True)
+        except ssl.SSLError:
+            try:
+                client.close()
+            finally:
+                return
+        return _orig_accept_client(client, address)
+
+    accept_client = _accept_client_tls  # all future accepts are TLS-wrapped
+    print("TLS enabled")
+except Exception as e:
+    print("TLS disabled:", e)
 look_thread = threading.Thread(target=look_for_client)
 look_thread.start()
 look_thread.join()

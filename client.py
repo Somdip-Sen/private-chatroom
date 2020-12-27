@@ -1,6 +1,7 @@
 import socket
 import threading
 import os
+import ssl
 
 online = False
 
@@ -27,6 +28,17 @@ def received():
 
 soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 soc.connect((input("Enter the host ip address: "), int(input("Enter the port number of the hosting: "))))
+try:
+    ctx = ssl.create_default_context()
+    # self-signed dev mode. For production remove the next two lines.
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+
+    server_name = soc.getpeername()[0]  # use the connected host
+    soc = ctx.wrap_socket(soc, server_hostname=server_name)  # TLS handshake now
+    print("TLS enabled")
+except Exception as e:
+    print("TLS failed:", e)
 if soc.recv(1024).decode("utf-8") == "DONE":
     print("connection established")
     online = True
